@@ -44,6 +44,112 @@ npm start
 
 The API will be available at `http://localhost:3000/v1`.
 
+## MCP Server
+
+Dira ships an [MCP (Model Context Protocol)](https://modelcontextprotocol.io) server that exposes all 23 API endpoints as tools, letting AI assistants like Claude interact with your boards, tasks, and subtasks directly in the chat.
+
+### Starting the MCP server
+
+The REST API must be running before the MCP server starts.
+
+```bash
+# Terminal 1 — REST API (port 3000)
+npm start
+
+# Terminal 2 — MCP server (port 4000)
+npm run mcp
+
+# Development mode (restarts on file changes)
+npm run mcp:dev
+```
+
+The MCP server listens on `http://0.0.0.0:4000` and exposes two endpoints:
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /sse` | Opens the SSE stream (clients connect here) |
+| `POST /messages?sessionId=…` | Receives tool calls from the client |
+
+#### MCP environment variables
+
+| Variable | Description | Default |
+|---|---|---|
+| `MCP_PORT` | Port the MCP server listens on | `4000` |
+| `DIRA_API_URL` | Base URL of the Dira REST API | `http://localhost:3000` |
+
+### Connecting from Claude Code
+
+**For yourself (local):**
+
+```bash
+claude mcp add dira --transport sse http://localhost:4000/sse
+```
+
+**For teammates on the same network** — replace the IP with your machine's local IP (e.g. from `ifconfig` / `ipconfig`):
+
+```bash
+claude mcp add dira --transport sse http://192.168.1.x:4000/sse
+```
+
+Verify the server was added:
+
+```bash
+claude mcp list
+```
+
+### Connecting from Claude Desktop
+
+Add the following to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows):
+
+```json
+{
+  "mcpServers": {
+    "dira": {
+      "transport": "sse",
+      "url": "http://localhost:4000/sse"
+    }
+  }
+}
+```
+
+Restart Claude Desktop after saving.
+
+### Available tools
+
+| Tool | Description |
+|---|---|
+| `register` | Create a new account and receive a JWT token |
+| `login` | Login and receive a JWT token |
+| `get_current_user` | Get the authenticated user profile |
+| `create_board` | Create a new project board |
+| `list_boards` | List all your boards |
+| `get_board` | Get details of a board |
+| `update_board` | Rename or update a board |
+| `delete_board` | Delete a board and all its data |
+| `create_status` | Add a status column to a board |
+| `list_statuses` | List status columns on a board |
+| `reorder_statuses` | Drag-and-drop reorder status columns |
+| `update_status` | Rename or recolor a status column |
+| `delete_status` | Delete an empty status column |
+| `create_task` | Create a task on a board |
+| `list_tasks` | List tasks with optional filters |
+| `get_task` | Get task details |
+| `update_task` | Update task fields |
+| `delete_task` | Delete a task and its subtasks |
+| `move_task_status` | Move a task to a different status column |
+| `create_subtask` | Add a subtask to a task |
+| `list_subtasks` | List subtasks for a task |
+| `update_subtask` | Update subtask title or mark it complete |
+| `delete_subtask` | Delete a subtask |
+
+> **Authentication:** all tools except `register` and `login` require a `token` parameter. Use the token returned by either of those tools.
+
+### Example conversation with Claude
+
+> *"Log me in with email jane@example.com and password S3cr3t!pass, then show me all my boards."*
+
+Claude will call `login` first, capture the token, then call `list_boards` automatically.
+
 ## API Documentation
 
 Interactive Swagger UI is served at:
@@ -96,6 +202,7 @@ dira/
 └── src/
     ├── server.js             # Entry point — connects to MongoDB and starts Express
     ├── app.js                # Express app setup, routes, Swagger UI
+    ├── mcp-server.js         # MCP server (SSE transport, 23 tools)
     ├── models/               # Mongoose schemas
     │   ├── user.model.js
     │   ├── board.model.js
@@ -144,3 +251,4 @@ dira/
 | [bcrypt](https://github.com/kelektiv/node.bcrypt.js) | Password hashing |
 | [swagger-ui-express](https://github.com/scottie1984/swagger-ui-express) | Swagger UI serving |
 | [js-yaml](https://github.com/nodeca/js-yaml) | YAML parsing for the spec file |
+| [@modelcontextprotocol/sdk](https://github.com/modelcontextprotocol/typescript-sdk) | MCP server (SSE transport) |
