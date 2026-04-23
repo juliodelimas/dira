@@ -150,6 +150,56 @@ Restart Claude Desktop after saving.
 
 Claude will call `login` first, capture the token, then call `list_boards` automatically.
 
+## Web UI
+
+Dira ships a browser-based Kanban interface built as a vanilla JS SPA served by a lightweight Express BFF (Backend-for-Frontend) that proxies requests to the REST API.
+
+### Features
+
+- **Login / Register** — tab-based auth form with automatic redirect on valid token
+- **Boards list** — grid of your project boards with create and delete actions
+- **Kanban board** — multi-column view with drag-and-drop tasks between status columns, color-coded columns, and task detail modals (title, description, priority, due date, subtasks)
+
+### Starting the UI
+
+The REST API must be running first (port 3000).
+
+```bash
+# Terminal 1 — REST API (if not already running)
+npm start
+
+# Terminal 2 — UI / BFF server
+cd ui
+npm install
+npm start        # production
+npm run dev      # development (restarts on file changes)
+```
+
+The UI is available at `http://localhost:3001`.
+
+### UI environment variables
+
+| Variable | Description | Default |
+|---|---|---|
+| `PORT` | Port the BFF server listens on | `3001` |
+| `API_URL` | Base URL of the Dira REST API | `http://localhost:3000` |
+
+### UI structure
+
+```
+ui/
+├── package.json
+├── server.js          # Express BFF — serves static files and proxies API requests
+└── public/
+    ├── index.html     # Login / Register page
+    ├── boards.html    # Boards list page
+    ├── board.html     # Kanban board page
+    └── js/
+        ├── auth.js    # Auth API calls and JWT helpers
+        ├── boards.js  # Board CRUD functions
+        └── board.js   # Board rendering, drag-and-drop, task management
+```
+
 ## API Documentation
 
 Interactive Swagger UI is served at:
@@ -199,6 +249,13 @@ curl -X POST http://localhost:3000/v1/boards \
 dira/
 ├── swagger.yaml              # OpenAPI 3.0 specification
 ├── .env.example              # Environment variable template
+├── ui/                       # Web UI (BFF + SPA)
+│   ├── server.js             # Express BFF — static files + API proxy (port 3001)
+│   └── public/               # Vanilla JS SPA
+│       ├── index.html        # Login / Register page
+│       ├── boards.html       # Boards list page
+│       ├── board.html        # Kanban board page
+│       └── js/               # Client-side JS modules
 └── src/
     ├── server.js             # Entry point — connects to MongoDB and starts Express
     ├── app.js                # Express app setup, routes, Swagger UI
@@ -252,3 +309,6 @@ dira/
 | [swagger-ui-express](https://github.com/scottie1984/swagger-ui-express) | Swagger UI serving |
 | [js-yaml](https://github.com/nodeca/js-yaml) | YAML parsing for the spec file |
 | [@modelcontextprotocol/sdk](https://github.com/modelcontextprotocol/typescript-sdk) | MCP server (SSE transport) |
+| [http-proxy-middleware](https://github.com/chimurai/http-proxy-middleware) | API proxy in the BFF server |
+| [Tailwind CSS](https://tailwindcss.com/) (CDN) | UI styling |
+| [Sortable.js](https://sortablejs.github.io/Sortable/) (CDN) | Drag-and-drop for tasks and columns |
