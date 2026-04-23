@@ -1,0 +1,1197 @@
+openapi: 3.0.3
+
+info:
+  title: Dira — Project Management API
+  description: |
+    REST API for a Jira-like project management application.
+    All protected endpoints require a Bearer JWT obtained via `/auth/login`.
+  version: 0.1.0
+  contact:
+    email: iam@juliodelima.com.br
+
+servers:
+  - url: https://api.dira.app/v1
+    description: Production
+  - url: http://localhost:3000/v1
+    description: Local development
+
+tags:
+  - name: Auth
+    description: Registration and login
+  - name: Users
+    description: Current user profile
+  - name: Boards
+    description: Project boards
+  - name: Statuses
+    description: Board columns (workflow statuses)
+  - name: Tasks
+    description: Board tasks
+  - name: Subtasks
+    description: Task subtasks
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SECURITY
+# ─────────────────────────────────────────────────────────────────────────────
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # SCHEMAS
+  # ───────────────────────────────────────────────────────────────────────────
+  schemas:
+
+    # ── Primitives / Enums ──────────────────────────────────────────────────
+
+    TaskPriority:
+      type: string
+      enum: [low, medium, high, critical]
+      example: medium
+
+    # ── Auth ────────────────────────────────────────────────────────────────
+
+    RegisterRequest:
+      type: object
+      required: [name, email, password]
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 100
+          example: Jane Doe
+        email:
+          type: string
+          format: email
+          example: jane@example.com
+        password:
+          type: string
+          format: password
+          minLength: 8
+          example: "S3cr3t!pass"
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          example: jane@example.com
+        password:
+          type: string
+          format: password
+          example: "S3cr3t!pass"
+
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          description: JWT Bearer token
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        user:
+          $ref: '#/components/schemas/User'
+
+    # ── User ────────────────────────────────────────────────────────────────
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+        name:
+          type: string
+          example: Jane Doe
+        email:
+          type: string
+          format: email
+          example: jane@example.com
+        createdAt:
+          type: string
+          format: date-time
+          example: "2026-04-22T10:00:00Z"
+
+    # ── Board ───────────────────────────────────────────────────────────────
+
+    CreateBoardRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 150
+          example: Backend Sprint
+        description:
+          type: string
+          maxLength: 1000
+          example: Tracks all backend tasks for Q2
+
+    UpdateBoardRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 150
+          example: Backend Sprint v2
+        description:
+          type: string
+          maxLength: 1000
+          example: Updated description
+
+    Board:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+        name:
+          type: string
+          example: Backend Sprint
+        description:
+          type: string
+          example: Tracks all backend tasks for Q2
+        ownerId:
+          type: string
+          format: uuid
+          example: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+        createdAt:
+          type: string
+          format: date-time
+          example: "2026-04-22T10:00:00Z"
+        updatedAt:
+          type: string
+          format: date-time
+          example: "2026-04-22T11:00:00Z"
+
+    BoardList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Board'
+        total:
+          type: integer
+          example: 5
+
+    # ── Status (Column) ─────────────────────────────────────────────────────
+
+    CreateStatusRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: In Progress
+        color:
+          type: string
+          pattern: '^#[0-9A-Fa-f]{6}$'
+          description: Hex color code
+          example: "#F59E0B"
+
+    UpdateStatusRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: In Review
+        color:
+          type: string
+          pattern: '^#[0-9A-Fa-f]{6}$'
+          example: "#8B5CF6"
+
+    ReorderStatusesRequest:
+      type: object
+      required: [orderedIds]
+      properties:
+        orderedIds:
+          type: array
+          description: Status IDs in the desired column order (left → right)
+          items:
+            type: string
+            format: uuid
+          example:
+            - "11111111-0000-0000-0000-000000000001"
+            - "11111111-0000-0000-0000-000000000002"
+            - "11111111-0000-0000-0000-000000000003"
+
+    Status:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: 11111111-0000-0000-0000-000000000001
+        boardId:
+          type: string
+          format: uuid
+          example: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+        name:
+          type: string
+          example: In Progress
+        color:
+          type: string
+          example: "#F59E0B"
+        position:
+          type: integer
+          description: Zero-based column order
+          example: 1
+
+    StatusList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Status'
+
+    # ── Task ────────────────────────────────────────────────────────────────
+
+    CreateTaskRequest:
+      type: object
+      required: [title, statusId]
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 255
+          example: Implement JWT refresh logic
+        description:
+          type: string
+          maxLength: 10000
+          example: Add refresh token endpoint and rotation logic
+        priority:
+          $ref: '#/components/schemas/TaskPriority'
+        statusId:
+          type: string
+          format: uuid
+          example: 11111111-0000-0000-0000-000000000001
+        assigneeId:
+          type: string
+          format: uuid
+          nullable: true
+          example: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+        dueDate:
+          type: string
+          format: date
+          nullable: true
+          example: "2026-05-01"
+
+    UpdateTaskRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 255
+          example: Implement JWT refresh logic (revised)
+        description:
+          type: string
+          maxLength: 10000
+        priority:
+          $ref: '#/components/schemas/TaskPriority'
+        assigneeId:
+          type: string
+          format: uuid
+          nullable: true
+        dueDate:
+          type: string
+          format: date
+          nullable: true
+
+    MoveTaskStatusRequest:
+      type: object
+      required: [statusId]
+      properties:
+        statusId:
+          type: string
+          format: uuid
+          description: Target status (column) ID
+          example: 22222222-0000-0000-0000-000000000002
+
+    Task:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: cccccccc-0000-0000-0000-000000000001
+        boardId:
+          type: string
+          format: uuid
+          example: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+        statusId:
+          type: string
+          format: uuid
+          example: 11111111-0000-0000-0000-000000000001
+        title:
+          type: string
+          example: Implement JWT refresh logic
+        description:
+          type: string
+          nullable: true
+          example: Add refresh token endpoint and rotation logic
+        priority:
+          $ref: '#/components/schemas/TaskPriority'
+        assigneeId:
+          type: string
+          format: uuid
+          nullable: true
+          example: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+        dueDate:
+          type: string
+          format: date
+          nullable: true
+          example: "2026-05-01"
+        subtaskCount:
+          type: integer
+          description: Total number of subtasks
+          example: 3
+        completedSubtaskCount:
+          type: integer
+          description: Number of completed subtasks
+          example: 1
+        createdAt:
+          type: string
+          format: date-time
+          example: "2026-04-22T10:00:00Z"
+        updatedAt:
+          type: string
+          format: date-time
+          example: "2026-04-22T11:00:00Z"
+
+    TaskList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Task'
+        total:
+          type: integer
+          example: 12
+
+    # ── Subtask ─────────────────────────────────────────────────────────────
+
+    CreateSubtaskRequest:
+      type: object
+      required: [title]
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 255
+          example: Write unit tests for refresh endpoint
+
+    UpdateSubtaskRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 255
+          example: Write integration tests
+        completed:
+          type: boolean
+          example: true
+
+    Subtask:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: dddddddd-0000-0000-0000-000000000001
+        taskId:
+          type: string
+          format: uuid
+          example: cccccccc-0000-0000-0000-000000000001
+        title:
+          type: string
+          example: Write unit tests for refresh endpoint
+        completed:
+          type: boolean
+          example: false
+        createdAt:
+          type: string
+          format: date-time
+          example: "2026-04-22T10:05:00Z"
+        updatedAt:
+          type: string
+          format: date-time
+          example: "2026-04-22T10:05:00Z"
+
+    SubtaskList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Subtask'
+
+    # ── Errors ───────────────────────────────────────────────────────────────
+
+    ErrorResponse:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          example: VALIDATION_ERROR
+        message:
+          type: string
+          example: Request validation failed
+        details:
+          type: array
+          nullable: true
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+                example: email
+              issue:
+                type: string
+                example: must be a valid email address
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # REUSABLE RESPONSES
+  # ───────────────────────────────────────────────────────────────────────────
+  responses:
+    Unauthorized:
+      description: Missing or invalid JWT
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: UNAUTHORIZED
+            message: Bearer token is missing or expired
+
+    Forbidden:
+      description: Authenticated but not allowed to perform this action
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: FORBIDDEN
+            message: You do not have permission to access this resource
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: NOT_FOUND
+            message: The requested resource does not exist
+
+    UnprocessableEntity:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: VALIDATION_ERROR
+            message: Request validation failed
+            details:
+              - field: email
+                issue: must be a valid email address
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # REUSABLE PARAMETERS
+  # ───────────────────────────────────────────────────────────────────────────
+  parameters:
+    boardId:
+      name: boardId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      example: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+
+    statusId:
+      name: statusId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      example: 11111111-0000-0000-0000-000000000001
+
+    taskId:
+      name: taskId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      example: cccccccc-0000-0000-0000-000000000001
+
+    subtaskId:
+      name: subtaskId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      example: dddddddd-0000-0000-0000-000000000001
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PATHS
+# ─────────────────────────────────────────────────────────────────────────────
+paths:
+
+  # ── Auth ──────────────────────────────────────────────────────────────────
+
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Create a new account
+      operationId: register
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Account created — JWT returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '409':
+          description: Email already in use
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: CONFLICT
+                message: An account with this email already exists
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Login and obtain a JWT
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Authenticated — JWT returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: INVALID_CREDENTIALS
+                message: Email or password is incorrect
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+
+  # ── Users ─────────────────────────────────────────────────────────────────
+
+  /users/me:
+    get:
+      tags: [Users]
+      summary: Get the authenticated user's profile
+      operationId: getMe
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ── Boards ────────────────────────────────────────────────────────────────
+
+  /boards:
+    post:
+      tags: [Boards]
+      summary: Create a board
+      operationId: createBoard
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateBoardRequest'
+      responses:
+        '201':
+          description: Board created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Board'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+
+    get:
+      tags: [Boards]
+      summary: List boards owned by the authenticated user
+      operationId: listBoards
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Paginated list of boards
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BoardList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /boards/{boardId}:
+    parameters:
+      - $ref: '#/components/parameters/boardId'
+
+    get:
+      tags: [Boards]
+      summary: Get a board by ID
+      operationId: getBoard
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Board details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Board'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags: [Boards]
+      summary: Update a board
+      operationId: updateBoard
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateBoardRequest'
+      responses:
+        '200':
+          description: Updated board
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Board'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+
+    delete:
+      tags: [Boards]
+      summary: Delete a board and all its data
+      operationId: deleteBoard
+      security:
+        - BearerAuth: []
+      responses:
+        '204':
+          description: Board deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ── Statuses ──────────────────────────────────────────────────────────────
+
+  /boards/{boardId}/statuses:
+    parameters:
+      - $ref: '#/components/parameters/boardId'
+
+    post:
+      tags: [Statuses]
+      summary: Create a status (column) on a board
+      operationId: createStatus
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateStatusRequest'
+      responses:
+        '201':
+          description: Status created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Status'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+
+    get:
+      tags: [Statuses]
+      summary: List statuses for a board, ordered by position
+      operationId: listStatuses
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Ordered list of statuses
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /boards/{boardId}/statuses/reorder:
+    parameters:
+      - $ref: '#/components/parameters/boardId'
+
+    patch:
+      tags: [Statuses]
+      summary: Reorder statuses (columns) on a board
+      operationId: reorderStatuses
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReorderStatusesRequest'
+      responses:
+        '200':
+          description: Statuses in new order
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+
+  /boards/{boardId}/statuses/{statusId}:
+    parameters:
+      - $ref: '#/components/parameters/boardId'
+      - $ref: '#/components/parameters/statusId'
+
+    put:
+      tags: [Statuses]
+      summary: Update a status
+      operationId: updateStatus
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateStatusRequest'
+      responses:
+        '200':
+          description: Updated status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Status'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+
+    delete:
+      tags: [Statuses]
+      summary: Delete a status (tasks must be moved first)
+      operationId: deleteStatus
+      security:
+        - BearerAuth: []
+      responses:
+        '204':
+          description: Status deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Status still has tasks — move them before deleting
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: CONFLICT
+                message: Cannot delete a status that still contains tasks
+
+  # ── Tasks ─────────────────────────────────────────────────────────────────
+
+  /boards/{boardId}/tasks:
+    parameters:
+      - $ref: '#/components/parameters/boardId'
+
+    post:
+      tags: [Tasks]
+      summary: Create a task on a board
+      operationId: createTask
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTaskRequest'
+      responses:
+        '201':
+          description: Task created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+
+    get:
+      tags: [Tasks]
+      summary: List tasks on a board
+      operationId: listTasks
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: statusId
+          in: query
+          description: Filter by status
+          schema:
+            type: string
+            format: uuid
+        - name: assigneeId
+          in: query
+          description: Filter by assignee
+          schema:
+            type: string
+            format: uuid
+        - name: priority
+          in: query
+          description: Filter by priority
+          schema:
+            $ref: '#/components/schemas/TaskPriority'
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        '200':
+          description: Paginated list of tasks
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /tasks/{taskId}:
+    parameters:
+      - $ref: '#/components/parameters/taskId'
+
+    get:
+      tags: [Tasks]
+      summary: Get a task by ID
+      operationId: getTask
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Task details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags: [Tasks]
+      summary: Update a task
+      operationId: updateTask
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTaskRequest'
+      responses:
+        '200':
+          description: Updated task
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+
+    delete:
+      tags: [Tasks]
+      summary: Delete a task and its subtasks
+      operationId: deleteTask
+      security:
+        - BearerAuth: []
+      responses:
+        '204':
+          description: Task deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /tasks/{taskId}/status:
+    parameters:
+      - $ref: '#/components/parameters/taskId'
+
+    patch:
+      tags: [Tasks]
+      summary: Move a task to a different status (column)
+      operationId: moveTaskStatus
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MoveTaskStatusRequest'
+      responses:
+        '200':
+          description: Task with updated status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+
+  # ── Subtasks ──────────────────────────────────────────────────────────────
+
+  /tasks/{taskId}/subtasks:
+    parameters:
+      - $ref: '#/components/parameters/taskId'
+
+    post:
+      tags: [Subtasks]
+      summary: Create a subtask
+      operationId: createSubtask
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSubtaskRequest'
+      responses:
+        '201':
+          description: Subtask created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subtask'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+
+    get:
+      tags: [Subtasks]
+      summary: List subtasks for a task
+      operationId: listSubtasks
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of subtasks
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubtaskList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /tasks/{taskId}/subtasks/{subtaskId}:
+    parameters:
+      - $ref: '#/components/parameters/taskId'
+      - $ref: '#/components/parameters/subtaskId'
+
+    put:
+      tags: [Subtasks]
+      summary: Update a subtask (title or completion)
+      operationId: updateSubtask
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateSubtaskRequest'
+      responses:
+        '200':
+          description: Updated subtask
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subtask'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+
+    delete:
+      tags: [Subtasks]
+      summary: Delete a subtask
+      operationId: deleteSubtask
+      security:
+        - BearerAuth: []
+      responses:
+        '204':
+          description: Subtask deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
