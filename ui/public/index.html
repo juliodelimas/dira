@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dira — Login</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: { brand: { DEFAULT: '#6366f1', dark: '#4f46e5' } }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="min-h-screen bg-slate-900 flex items-center justify-center">
+  <div id="app" class="w-full max-w-md px-4">
+    <div class="text-center mb-8">
+      <h1 class="text-4xl font-bold text-white tracking-tight">Dira</h1>
+      <p class="text-slate-400 mt-1">Project management, simplified.</p>
+    </div>
+
+    <div class="bg-slate-800 rounded-2xl shadow-xl p-8">
+      <!-- Tab toggle -->
+      <div class="flex rounded-lg bg-slate-700 p-1 mb-6" id="tabs">
+        <button id="tab-login"
+          onclick="showTab('login')"
+          class="flex-1 py-2 rounded-md text-sm font-medium transition-colors bg-slate-600 text-white shadow">
+          Sign In
+        </button>
+        <button id="tab-register"
+          onclick="showTab('register')"
+          class="flex-1 py-2 rounded-md text-sm font-medium transition-colors text-slate-400 hover:text-white">
+          Register
+        </button>
+      </div>
+
+      <!-- Error -->
+      <div id="error-msg" class="hidden mb-4 px-4 py-3 bg-red-900/50 border border-red-500 rounded-lg text-red-300 text-sm"></div>
+
+      <!-- Login form -->
+      <form id="form-login" onsubmit="handleLogin(event)" class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-slate-300 mb-1">Email</label>
+          <input type="email" id="login-email" required
+            class="w-full px-4 py-2 rounded-lg bg-slate-700 border border-slate-600 text-white placeholder-slate-400 focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand"
+            placeholder="you@example.com" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-300 mb-1">Password</label>
+          <input type="password" id="login-password" required
+            class="w-full px-4 py-2 rounded-lg bg-slate-700 border border-slate-600 text-white placeholder-slate-400 focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand"
+            placeholder="••••••••" />
+        </div>
+        <button type="submit"
+          class="w-full py-2.5 rounded-lg bg-brand hover:bg-brand-dark text-white font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2 focus:ring-offset-slate-800">
+          Sign In
+        </button>
+      </form>
+
+      <!-- Register form -->
+      <form id="form-register" onsubmit="handleRegister(event)" class="space-y-4 hidden">
+        <div>
+          <label class="block text-sm font-medium text-slate-300 mb-1">Name</label>
+          <input type="text" id="reg-name" required
+            class="w-full px-4 py-2 rounded-lg bg-slate-700 border border-slate-600 text-white placeholder-slate-400 focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand"
+            placeholder="Your name" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-300 mb-1">Email</label>
+          <input type="email" id="reg-email" required
+            class="w-full px-4 py-2 rounded-lg bg-slate-700 border border-slate-600 text-white placeholder-slate-400 focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand"
+            placeholder="you@example.com" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-300 mb-1">Password</label>
+          <input type="password" id="reg-password" required minlength="8"
+            class="w-full px-4 py-2 rounded-lg bg-slate-700 border border-slate-600 text-white placeholder-slate-400 focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand"
+            placeholder="Min. 8 characters" />
+        </div>
+        <button type="submit"
+          class="w-full py-2.5 rounded-lg bg-brand hover:bg-brand-dark text-white font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2 focus:ring-offset-slate-800">
+          Create Account
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <script src="/js/auth.js"></script>
+  <script>
+    // Redirect if already logged in
+    if (localStorage.getItem('dira_token')) {
+      window.location.href = '/boards.html';
+    }
+
+    function showTab(tab) {
+      const isLogin = tab === 'login';
+      document.getElementById('form-login').classList.toggle('hidden', !isLogin);
+      document.getElementById('form-register').classList.toggle('hidden', isLogin);
+      document.getElementById('tab-login').className = isLogin
+        ? 'flex-1 py-2 rounded-md text-sm font-medium transition-colors bg-slate-600 text-white shadow'
+        : 'flex-1 py-2 rounded-md text-sm font-medium transition-colors text-slate-400 hover:text-white';
+      document.getElementById('tab-register').className = !isLogin
+        ? 'flex-1 py-2 rounded-md text-sm font-medium transition-colors bg-slate-600 text-white shadow'
+        : 'flex-1 py-2 rounded-md text-sm font-medium transition-colors text-slate-400 hover:text-white';
+      clearError();
+    }
+
+    function showError(msg) {
+      const el = document.getElementById('error-msg');
+      el.textContent = msg;
+      el.classList.remove('hidden');
+    }
+
+    function clearError() {
+      document.getElementById('error-msg').classList.add('hidden');
+    }
+
+    async function handleLogin(e) {
+      e.preventDefault();
+      clearError();
+      const email = document.getElementById('login-email').value;
+      const password = document.getElementById('login-password').value;
+      try {
+        const token = await login(email, password);
+        localStorage.setItem('dira_token', token);
+        window.location.href = '/boards.html';
+      } catch (err) {
+        showError(err.message);
+      }
+    }
+
+    async function handleRegister(e) {
+      e.preventDefault();
+      clearError();
+      const name = document.getElementById('reg-name').value;
+      const email = document.getElementById('reg-email').value;
+      const password = document.getElementById('reg-password').value;
+      try {
+        const token = await register(name, email, password);
+        localStorage.setItem('dira_token', token);
+        window.location.href = '/boards.html';
+      } catch (err) {
+        showError(err.message);
+      }
+    }
+  </script>
+</body>
+</html>

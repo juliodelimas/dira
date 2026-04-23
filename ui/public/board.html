@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dira — Board</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+  <script>
+    tailwind.config = {
+      theme: { extend: { colors: { brand: { DEFAULT: '#6366f1', dark: '#4f46e5' } } } }
+    }
+  </script>
+  <style>
+    .task-list { min-height: 60px; }
+    .sortable-drag { opacity: 0; }
+    .sortable-ghost { opacity: 0.4; }
+  </style>
+</head>
+<body class="h-screen flex flex-col bg-slate-900 text-white overflow-hidden">
+
+  <!-- Navbar -->
+  <nav class="bg-slate-800 border-b border-slate-700 px-6 py-3 flex items-center gap-4 flex-shrink-0">
+    <a href="/boards.html" class="text-slate-400 hover:text-white transition-colors text-sm">← Boards</a>
+    <h1 id="board-title" class="text-lg font-bold flex-1"></h1>
+    <button onclick="openStatusModal()"
+      class="text-sm px-3 py-1.5 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors">
+      Manage Columns
+    </button>
+    <button onclick="logout()" class="text-sm text-slate-400 hover:text-white transition-colors">Sign out</button>
+  </nav>
+
+  <!-- Board columns -->
+  <div id="columns-container" class="flex gap-4 flex-1 overflow-x-auto p-6 items-start">
+    <!-- columns rendered by JS -->
+  </div>
+
+  <!-- ── New Task Modal ──────────────────────────────────────── -->
+  <div id="modal-new-task" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+    <div class="bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md p-6">
+      <h3 class="text-lg font-semibold mb-4">New Task</h3>
+      <form onsubmit="submitNewTask(event)" class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-slate-300 mb-1">Title</label>
+          <input type="text" id="new-task-title" required
+            class="w-full px-4 py-2 rounded-lg bg-slate-700 border border-slate-600 text-white placeholder-slate-400 focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand"
+            placeholder="Task title" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-300 mb-1">Description</label>
+          <textarea id="new-task-desc" rows="3"
+            class="w-full px-4 py-2 rounded-lg bg-slate-700 border border-slate-600 text-white placeholder-slate-400 focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand resize-none"
+            placeholder="Optional description"></textarea>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-sm font-medium text-slate-300 mb-1">Priority</label>
+            <select id="new-task-priority"
+              class="w-full px-3 py-2 rounded-lg bg-slate-700 border border-slate-600 text-white focus:outline-none focus:border-brand">
+              <option value="low">Low</option>
+              <option value="medium" selected>Medium</option>
+              <option value="high">High</option>
+              <option value="critical">Critical</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-300 mb-1">Due Date</label>
+            <input type="date" id="new-task-due"
+              class="w-full px-3 py-2 rounded-lg bg-slate-700 border border-slate-600 text-white focus:outline-none focus:border-brand" />
+          </div>
+        </div>
+        <div class="flex gap-3 pt-2">
+          <button type="button" onclick="closeNewTaskModal()"
+            class="flex-1 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-white text-sm font-medium transition-colors">Cancel</button>
+          <button type="submit"
+            class="flex-1 py-2 rounded-lg bg-brand hover:bg-brand-dark text-white text-sm font-medium transition-colors">Create</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ── Task Detail Modal ───────────────────────────────────── -->
+  <div id="modal-task-detail" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+    <div class="bg-slate-800 rounded-2xl shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-lg font-semibold">Task Detail</h3>
+        <button onclick="closeTaskDetail()" class="text-slate-400 hover:text-white transition-colors">✕</button>
+      </div>
+
+      <div class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-slate-300 mb-1">Title</label>
+          <input type="text" id="detail-title"
+            class="w-full px-4 py-2 rounded-lg bg-slate-700 border border-slate-600 text-white focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-300 mb-1">Description</label>
+          <textarea id="detail-desc" rows="3"
+            class="w-full px-4 py-2 rounded-lg bg-slate-700 border border-slate-600 text-white placeholder-slate-400 focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand resize-none"></textarea>
+        </div>
+        <div class="grid grid-cols-3 gap-3">
+          <div>
+            <label class="block text-sm font-medium text-slate-300 mb-1">Priority</label>
+            <select id="detail-priority"
+              class="w-full px-3 py-2 rounded-lg bg-slate-700 border border-slate-600 text-white focus:outline-none focus:border-brand text-sm">
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+              <option value="critical">Critical</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-300 mb-1">Status</label>
+            <select id="detail-status"
+              class="w-full px-3 py-2 rounded-lg bg-slate-700 border border-slate-600 text-white focus:outline-none focus:border-brand text-sm">
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-300 mb-1">Due Date</label>
+            <input type="date" id="detail-due"
+              class="w-full px-3 py-2 rounded-lg bg-slate-700 border border-slate-600 text-white focus:outline-none focus:border-brand text-sm" />
+          </div>
+        </div>
+
+        <!-- Subtasks -->
+        <div>
+          <label class="block text-sm font-medium text-slate-300 mb-2">Subtasks</label>
+          <div id="subtask-list" class="mb-3"></div>
+          <form onsubmit="addSubtask(event)" class="flex gap-2">
+            <input type="text" id="new-subtask-title" placeholder="Add a subtask…"
+              class="flex-1 px-3 py-2 rounded-lg bg-slate-700 border border-slate-600 text-white text-sm placeholder-slate-400 focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand" />
+            <button type="submit"
+              class="px-4 py-2 rounded-lg bg-slate-600 hover:bg-slate-500 text-white text-sm transition-colors">Add</button>
+          </form>
+        </div>
+      </div>
+
+      <div class="flex gap-3 mt-6">
+        <button onclick="deleteTask()"
+          class="px-4 py-2 rounded-lg bg-red-900/50 hover:bg-red-800 border border-red-700 text-red-300 text-sm font-medium transition-colors">
+          Delete Task
+        </button>
+        <div class="flex-1"></div>
+        <button onclick="closeTaskDetail()"
+          class="px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-white text-sm font-medium transition-colors">Cancel</button>
+        <button onclick="saveTaskDetail()"
+          class="px-4 py-2 rounded-lg bg-brand hover:bg-brand-dark text-white text-sm font-medium transition-colors">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Manage Columns Modal ────────────────────────────────── -->
+  <div id="modal-statuses" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+    <div class="bg-slate-800 rounded-2xl shadow-2xl w-full max-w-sm p-6">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-lg font-semibold">Manage Columns</h3>
+        <button onclick="closeStatusModal()" class="text-slate-400 hover:text-white transition-colors">✕</button>
+      </div>
+      <div id="status-list" class="mb-4"></div>
+      <form onsubmit="addStatus(event)" class="space-y-3">
+        <div class="flex gap-2">
+          <input type="text" id="new-status-name" placeholder="Column name" required
+            class="flex-1 px-3 py-2 rounded-lg bg-slate-700 border border-slate-600 text-white text-sm placeholder-slate-400 focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand" />
+          <input type="color" id="new-status-color" value="#6366f1"
+            class="w-10 h-10 rounded-lg bg-slate-700 border border-slate-600 cursor-pointer p-1" />
+        </div>
+        <button type="submit"
+          class="w-full py-2 rounded-lg bg-brand hover:bg-brand-dark text-white text-sm font-medium transition-colors">
+          Add Column
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <script src="/js/auth.js"></script>
+  <script src="/js/board.js"></script>
+  <script>
+    requireAuth();
+
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get('id');
+    if (!id) window.location.href = '/boards.html';
+
+    // Close modals on backdrop click
+    ['modal-new-task', 'modal-task-detail', 'modal-statuses'].forEach(modalId => {
+      document.getElementById(modalId).addEventListener('click', function(e) {
+        if (e.target === this) this.classList.add('hidden');
+      });
+    });
+
+    loadBoard(id);
+  </script>
+</body>
+</html>
