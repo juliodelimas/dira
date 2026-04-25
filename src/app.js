@@ -10,6 +10,7 @@ import boardRoutes from './routes/boards.routes.js';
 import statusRoutes from './routes/statuses.routes.js';
 import taskRoutes from './routes/tasks.routes.js';
 import subtaskRoutes from './routes/subtasks.routes.js';
+import commentRoutes from './routes/comments.routes.js';
 import { errorHandler } from './middlewares/errorHandler.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -27,6 +28,7 @@ app.use('/v1', boardRoutes);
 app.use('/v1', statusRoutes);
 app.use('/v1', taskRoutes);
 app.use('/v1', subtaskRoutes);
+app.use('/v1', commentRoutes);
 
 app.use(errorHandler);
 

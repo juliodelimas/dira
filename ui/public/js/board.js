@@ -176,6 +176,7 @@ async function submitNewTask(e) {
 // ── Task Detail Modal ─────────────────────────────────────────────
 let activeTask = null;
 let subtasks = [];
+let comments = [];
 
 async function openTaskDetail(taskId) {
   activeTask = tasks.find(t => t.id === taskId);
@@ -189,9 +190,14 @@ async function openTaskDetail(taskId) {
     `<option value="${s.id}" ${s.id === activeTask.statusId ? 'selected' : ''}>${escHtml(s.name)}</option>`
   ).join('');
 
-  const subtaskData = await apiFetch(`/tasks/${taskId}/subtasks`);
+  const [subtaskData, commentData] = await Promise.all([
+    apiFetch(`/tasks/${taskId}/subtasks`),
+    apiFetch(`/tasks/${taskId}/comments`),
+  ]);
   subtasks = subtaskData.items ?? subtaskData;
+  comments = commentData.items ?? commentData;
   renderSubtasks();
+  renderComments();
   document.getElementById('modal-task-detail').classList.remove('hidden');
 }
 
@@ -309,6 +315,52 @@ async function deleteSubtask(subtaskId) {
       task.completedSubtaskCount = subtasks.filter(s => s.completed).length;
     }
     refreshTaskCard(activeTask.id);
+  } catch (err) {
+    alert(err.message);
+  }
+}
+
+// ── Comments ──────────────────────────────────────────────────────
+
+function renderComments() {
+  const el = document.getElementById('comment-list');
+  el.innerHTML = comments.map(c => `
+    <div class="bg-slate-700 rounded-lg p-3">
+      <div class="flex items-center justify-between mb-1">
+        <span class="text-xs font-semibold text-slate-300">${escHtml(c.authorName || 'Unknown')}</span>
+        <div class="flex items-center gap-2">
+          <span class="text-xs text-slate-500">${new Date(c.createdAt).toLocaleString()}</span>
+          <button onclick="deleteComment('${c.id}')" class="text-slate-500 hover:text-red-400 transition-colors text-xs">✕</button>
+        </div>
+      </div>
+      <p class="text-sm text-slate-200 whitespace-pre-wrap">${escHtml(c.text)}</p>
+    </div>
+  `).join('') || '<p class="text-sm text-slate-500 py-1">No comments yet.</p>';
+}
+
+async function addComment(e) {
+  e.preventDefault();
+  const textarea = document.getElementById('new-comment-text');
+  const text = textarea.value.trim();
+  if (!text) return;
+  try {
+    const c = await apiFetch(`/tasks/${activeTask.id}/comments`, {
+      method: 'POST',
+      body: JSON.stringify({ text }),
+    });
+    comments.push(c);
+    textarea.value = '';
+    renderComments();
+  } catch (err) {
+    alert(err.message);
+  }
+}
+
+async function deleteComment(commentId) {
+  try {
+    await apiFetch(`/tasks/${activeTask.id}/comments/${commentId}`, { method: 'DELETE' });
+    comments = comments.filter(c => c.id !== commentId);
+    renderComments();
   } catch (err) {
     alert(err.message);
   }

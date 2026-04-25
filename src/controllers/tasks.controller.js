@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import Task from '../models/task.model.js';
 import Status from '../models/status.model.js';
 import Subtask from '../models/subtask.model.js';
+import Comment from '../models/comment.model.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { getBoardOrFail } from '../utils/boardGuard.js';
 import { AppError } from '../utils/AppError.js';
@@ -89,6 +90,7 @@ export const deleteTask = asyncHandler(async (req, res) => {
   if (!task) throw new AppError(404, 'NOT_FOUND', 'The requested resource does not exist');
   await getBoardOrFail(task.boardId, req.user.id);
   await Subtask.deleteMany({ taskId: task._id });
+  await Comment.deleteMany({ taskId: task._id });
   await task.deleteOne();
   res.status(204).send();
 });

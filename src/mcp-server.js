@@ -341,6 +341,42 @@ server.tool(
     call('DELETE', `/tasks/${taskId}/subtasks/${subtaskId}`, { token }),
 );
 
+// --- Comments ---
+
+server.tool(
+  'create_comment',
+  'Add a comment to a task.',
+  {
+    token: z.string().describe('JWT token'),
+    taskId: z.string(),
+    text: z.string(),
+  },
+  ({ token, taskId, text }) =>
+    call('POST', `/tasks/${taskId}/comments`, { token, body: { text } }),
+);
+
+server.tool(
+  'list_comments',
+  'List all comments on a task.',
+  {
+    token: z.string().describe('JWT token'),
+    taskId: z.string(),
+  },
+  ({ token, taskId }) => call('GET', `/tasks/${taskId}/comments`, { token }),
+);
+
+server.tool(
+  'delete_comment',
+  'Delete a comment from a task (only the comment author can delete).',
+  {
+    token: z.string().describe('JWT token'),
+    taskId: z.string(),
+    commentId: z.string(),
+  },
+  ({ token, taskId, commentId }) =>
+    call('DELETE', `/tasks/${taskId}/comments/${commentId}`, { token }),
+);
+
 // ---------------------------------------------------------------------------
 // SSE HTTP server
 // ---------------------------------------------------------------------------

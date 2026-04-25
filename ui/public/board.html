@@ -133,6 +133,18 @@
               class="px-4 py-2 rounded-lg bg-slate-600 hover:bg-slate-500 text-white text-sm transition-colors">Add</button>
           </form>
         </div>
+
+        <!-- Comments -->
+        <div>
+          <label class="block text-sm font-medium text-slate-300 mb-2">Comments</label>
+          <div id="comment-list" class="mb-3 space-y-2 max-h-48 overflow-y-auto"></div>
+          <form onsubmit="addComment(event)" class="flex gap-2 items-end">
+            <textarea id="new-comment-text" placeholder="Write a comment…" rows="2"
+              class="flex-1 px-3 py-2 rounded-lg bg-slate-700 border border-slate-600 text-white text-sm placeholder-slate-400 focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand resize-none"></textarea>
+            <button type="submit"
+              class="px-4 py-2 rounded-lg bg-slate-600 hover:bg-slate-500 text-white text-sm transition-colors">Post</button>
+          </form>
+        </div>
       </div>
 
       <div class="flex gap-3 mt-6">
