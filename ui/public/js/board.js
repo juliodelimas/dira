@@ -17,6 +17,24 @@ async function loadBoard(id) {
   tasks = taskList.items ?? taskList;
   renderBoard();
   initDragDrop();
+
+  const btn = document.getElementById('invite-code-btn');
+  if (btn && boardData.inviteCode) {
+    btn.textContent = `Invite: ${boardData.inviteCode}`;
+    btn.classList.remove('hidden');
+  }
+}
+
+async function copyBoardInviteCode() {
+  try {
+    await navigator.clipboard.writeText(boardData.inviteCode);
+    const btn = document.getElementById('invite-code-btn');
+    const orig = btn.textContent;
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.textContent = orig; }, 1500);
+  } catch {
+    prompt('Copy this invite code:', boardData.inviteCode);
+  }
 }
 
 function getTasksByStatus(statusId) {

@@ -25,10 +25,16 @@
   <main class="max-w-5xl mx-auto px-6 py-10">
     <div class="flex items-center justify-between mb-8">
       <h2 class="text-2xl font-bold">My Boards</h2>
-      <button onclick="openCreateModal()"
-        class="px-4 py-2 bg-brand hover:bg-brand-dark text-white rounded-lg text-sm font-medium transition-colors">
-        + New Board
-      </button>
+      <div class="flex gap-2">
+        <button onclick="openJoinModal()"
+          class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg text-sm font-medium transition-colors">
+          Join Board
+        </button>
+        <button onclick="openCreateModal()"
+          class="px-4 py-2 bg-brand hover:bg-brand-dark text-white rounded-lg text-sm font-medium transition-colors">
+          + New Board
+        </button>
+      </div>
     </div>
 
     <!-- Board grid -->
@@ -41,6 +47,31 @@
       <p class="text-slate-500 text-sm mt-1">Create your first board to get started.</p>
     </div>
   </main>
+
+  <!-- Join Board Modal -->
+  <div id="modal-join" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+    <div class="bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md p-6">
+      <h3 class="text-lg font-semibold mb-4">Join a Board</h3>
+      <form onsubmit="submitJoinBoard(event)" class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-slate-300 mb-1">Invite Code</label>
+          <input type="text" id="join-code" required
+            class="w-full px-4 py-2 rounded-lg bg-slate-700 border border-slate-600 text-white placeholder-slate-400 focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand font-mono tracking-widest uppercase"
+            placeholder="e.g. A1B2C3D4" />
+        </div>
+        <div class="flex gap-3 pt-2">
+          <button type="button" onclick="closeJoinModal()"
+            class="flex-1 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-white text-sm font-medium transition-colors">
+            Cancel
+          </button>
+          <button type="submit"
+            class="flex-1 py-2 rounded-lg bg-brand hover:bg-brand-dark text-white text-sm font-medium transition-colors">
+            Join
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <!-- Create Board Modal -->
   <div id="modal-create" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
@@ -103,15 +134,55 @@
                onclick="window.location.href='/board.html?id=${b.id}'">
             <div class="flex items-start justify-between">
               <h3 class="font-semibold text-white group-hover:text-brand transition-colors">${escHtml(b.name)}</h3>
-              <button onclick="event.stopPropagation(); confirmDelete('${b.id}', '${escHtml(b.name)}')"
-                class="text-slate-600 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100 text-sm">✕</button>
+              ${b.isOwner
+                ? `<button onclick="event.stopPropagation(); confirmDelete('${b.id}', '${escHtml(b.name)}')"
+                    class="text-slate-600 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100 text-sm">✕</button>`
+                : `<span class="text-xs text-slate-500 bg-slate-700 px-2 py-0.5 rounded-full">member</span>`}
             </div>
             ${b.description ? `<p class="text-slate-400 text-sm mt-1 line-clamp-2">${escHtml(b.description)}</p>` : ''}
-            <p class="text-xs text-slate-500 mt-3">${new Date(b.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+            <div class="flex items-center justify-between mt-3">
+              <p class="text-xs text-slate-500">${new Date(b.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+              <button onclick="event.stopPropagation(); copyInviteCode('${b.inviteCode}')"
+                class="text-xs text-slate-500 hover:text-slate-300 transition-colors opacity-0 group-hover:opacity-100 font-mono"
+                title="Copy invite code">
+                ${escHtml(b.inviteCode)}
+              </button>
+            </div>
           </div>
         `).join('');
       } catch (err) {
         grid.innerHTML = `<p class="text-red-400 col-span-3">${err.message}</p>`;
+      }
+    }
+
+    function openJoinModal() {
+      document.getElementById('join-code').value = '';
+      document.getElementById('modal-join').classList.remove('hidden');
+      setTimeout(() => document.getElementById('join-code').focus(), 50);
+    }
+
+    function closeJoinModal() {
+      document.getElementById('modal-join').classList.add('hidden');
+    }
+
+    async function submitJoinBoard(e) {
+      e.preventDefault();
+      const inviteCode = document.getElementById('join-code').value.trim().toUpperCase();
+      try {
+        await joinBoard(inviteCode);
+        closeJoinModal();
+        await loadBoards();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    async function copyInviteCode(code) {
+      try {
+        await navigator.clipboard.writeText(code);
+        alert(`Invite code copied: ${code}`);
+      } catch {
+        prompt('Copy this invite code:', code);
       }
     }
 
@@ -153,9 +224,12 @@
       return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     }
 
-    // Close modal on backdrop click
+    // Close modals on backdrop click
     document.getElementById('modal-create').addEventListener('click', function(e) {
       if (e.target === this) closeCreateModal();
+    });
+    document.getElementById('modal-join').addEventListener('click', function(e) {
+      if (e.target === this) closeJoinModal();
     });
 
     init();

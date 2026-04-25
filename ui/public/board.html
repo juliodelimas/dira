@@ -23,6 +23,9 @@
   <nav class="bg-slate-800 border-b border-slate-700 px-6 py-3 flex items-center gap-4 flex-shrink-0">
     <a href="/boards.html" class="text-slate-400 hover:text-white transition-colors text-sm">← Boards</a>
     <h1 id="board-title" class="text-lg font-bold flex-1"></h1>
+    <button id="invite-code-btn" onclick="copyBoardInviteCode()" title="Click to copy invite code"
+      class="hidden text-xs font-mono text-slate-400 bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded-lg transition-colors">
+    </button>
     <button onclick="openStatusModal()"
       class="text-sm px-3 py-1.5 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors">
       Manage Columns

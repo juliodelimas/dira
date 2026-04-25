@@ -26,3 +26,9 @@ export const listBoardsSchema = z.object({
     pageSize: z.coerce.number().int().min(1).max(100).default(20),
   }),
 });
+
+export const joinBoardSchema = z.object({
+  body: z.object({
+    inviteCode: z.string().min(1),
+  }),
+});

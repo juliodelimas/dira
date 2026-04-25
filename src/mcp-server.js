@@ -35,9 +35,10 @@ const call = async (method, path, { token, body, params } = {}) => {
 };
 
 // ---------------------------------------------------------------------------
-// MCP Server
+// MCP Server factory — one instance per SSE connection
 // ---------------------------------------------------------------------------
 
+function createServer() {
 const server = new McpServer({ name: 'dira', version: '0.1.0' });
 
 // --- Auth ---
@@ -125,12 +126,23 @@ server.tool(
 
 server.tool(
   'delete_board',
-  'Delete a board and all its statuses, tasks, and subtasks.',
+  'Delete a board and all its statuses, tasks, and subtasks. Only the board owner can do this.',
   {
     token: z.string().describe('JWT token'),
     boardId: z.string(),
   },
   ({ token, boardId }) => call('DELETE', `/boards/${boardId}`, { token }),
+);
+
+server.tool(
+  'join_board',
+  'Join an existing board using its invite code. Returns the board details.',
+  {
+    token: z.string().describe('JWT token'),
+    inviteCode: z.string().describe('The invite code shown on the board, e.g. A1B2C3D4'),
+  },
+  ({ token, inviteCode }) =>
+    call('POST', '/boards/join', { token, body: { inviteCode } }),
 );
 
 // --- Statuses ---
@@ -377,6 +389,9 @@ server.tool(
     call('DELETE', `/tasks/${taskId}/comments/${commentId}`, { token }),
 );
 
+  return server;
+}
+
 // ---------------------------------------------------------------------------
 // SSE HTTP server
 // ---------------------------------------------------------------------------
@@ -385,6 +400,7 @@ const app = express();
 const transports = new Map();
 
 app.get('/sse', async (req, res) => {
+  const server = createServer();
   const transport = new SSEServerTransport('/messages', res);
   transports.set(transport.sessionId, transport);
   res.on('close', () => transports.delete(transport.sessionId));
