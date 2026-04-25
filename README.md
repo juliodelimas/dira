@@ -1,6 +1,6 @@
 # Dira — Project Management API
 
-A RESTful API for a Jira-like project management application. Supports boards, workflow statuses (columns), tasks, subtasks, and JWT-based authentication.
+A RESTful API for a Jira-like project management application. Supports boards, workflow statuses (columns), tasks, subtasks, comments, JWT-based authentication, and invite-code board sharing.
 
 ## Prerequisites
 
@@ -46,7 +46,7 @@ The API will be available at `http://localhost:3000/v1`.
 
 ## MCP Server
 
-Dira ships an [MCP (Model Context Protocol)](https://modelcontextprotocol.io) server that exposes all 23 API endpoints as tools, letting AI assistants like Claude interact with your boards, tasks, and subtasks directly in the chat.
+Dira ships an [MCP (Model Context Protocol)](https://modelcontextprotocol.io) server that exposes all 27 API endpoints as tools, letting AI assistants like Claude interact with your boards, tasks, subtasks, and comments directly in the chat.
 
 ### Starting the MCP server
 
@@ -126,6 +126,7 @@ Restart Claude Desktop after saving.
 | `get_board` | Get details of a board |
 | `update_board` | Rename or update a board |
 | `delete_board` | Delete a board and all its data |
+| `join_board` | Join an existing board using its invite code |
 | `create_status` | Add a status column to a board |
 | `list_statuses` | List status columns on a board |
 | `reorder_statuses` | Drag-and-drop reorder status columns |
@@ -141,6 +142,9 @@ Restart Claude Desktop after saving.
 | `list_subtasks` | List subtasks for a task |
 | `update_subtask` | Update subtask title or mark it complete |
 | `delete_subtask` | Delete a subtask |
+| `create_comment` | Add a comment to a task |
+| `list_comments` | List all comments on a task |
+| `delete_comment` | Delete a comment (author only) |
 
 > **Authentication:** all tools except `register` and `login` require a `token` parameter. Use the token returned by either of those tools.
 
@@ -157,8 +161,9 @@ Dira ships a browser-based Kanban interface built as a vanilla JS SPA served by 
 ### Features
 
 - **Login / Register** — tab-based auth form with automatic redirect on valid token
-- **Boards list** — grid of your project boards with create and delete actions
-- **Kanban board** — multi-column view with drag-and-drop tasks between status columns, color-coded columns, and task detail modals (title, description, priority, due date, subtasks)
+- **Boards list** — grid of your project boards with create and delete actions; each board shows its invite code on hover (click to copy); members see a "member" badge instead of the delete button
+- **Join a board** — "Join Board" button opens a modal where you enter an invite code to gain full access to that board (except deleting it)
+- **Kanban board** — multi-column view with drag-and-drop tasks between status columns, color-coded columns, and task detail modals (title, description, priority, due date, subtasks, comments); the invite code is shown in the navbar for easy sharing
 
 ### Starting the UI
 
@@ -217,9 +222,24 @@ The spec source is [`swagger.yaml`](./swagger.yaml).
 | Auth | `/v1/auth` | Register and login |
 | Users | `/v1/users` | Current user profile |
 | Boards | `/v1/boards` | Project boards |
+| Board sharing | `POST /v1/boards/join` | Join a board via invite code |
 | Statuses | `/v1/boards/:boardId/statuses` | Workflow columns |
 | Tasks | `/v1/boards/:boardId/tasks` | Board tasks |
 | Subtasks | `/v1/tasks/:taskId/subtasks` | Task subtasks |
+| Comments | `/v1/tasks/:taskId/comments` | Task comments |
+
+### Board sharing
+
+Every board has a unique 8-character invite code (e.g. `A1B2C3D4`). Share it with anyone who has a Dira account — they join by posting the code:
+
+```bash
+curl -X POST http://localhost:3000/v1/boards/join \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"inviteCode":"A1B2C3D4"}'
+```
+
+Members have full access (create/edit/delete tasks, subtasks, comments, manage columns) except they cannot delete the board itself. The owner can always see and share the invite code from the board header in the UI.
 
 All protected endpoints require an `Authorization: Bearer <token>` header obtained from `POST /v1/auth/login`.
 
@@ -259,27 +279,30 @@ dira/
 └── src/
     ├── server.js             # Entry point — connects to MongoDB and starts Express
     ├── app.js                # Express app setup, routes, Swagger UI
-    ├── mcp-server.js         # MCP server (SSE transport, 23 tools)
+    ├── mcp-server.js         # MCP server (SSE transport, 27 tools)
     ├── models/               # Mongoose schemas
     │   ├── user.model.js
     │   ├── board.model.js
     │   ├── status.model.js
     │   ├── task.model.js
-    │   └── subtask.model.js
+    │   ├── subtask.model.js
+    │   └── comment.model.js
     ├── controllers/          # Request handlers and business logic
     │   ├── auth.controller.js
     │   ├── users.controller.js
     │   ├── boards.controller.js
     │   ├── statuses.controller.js
     │   ├── tasks.controller.js
-    │   └── subtasks.controller.js
+    │   ├── subtasks.controller.js
+    │   └── comments.controller.js
     ├── routes/               # Express routers
     │   ├── auth.routes.js
     │   ├── users.routes.js
     │   ├── boards.routes.js
     │   ├── statuses.routes.js
     │   ├── tasks.routes.js
-    │   └── subtasks.routes.js
+    │   ├── subtasks.routes.js
+    │   └── comments.routes.js
     ├── middlewares/
     │   ├── authenticate.js   # JWT guard
     │   ├── validate.js       # Zod request validation
@@ -290,7 +313,8 @@ dira/
     │   ├── board.schema.js
     │   ├── status.schema.js
     │   ├── task.schema.js
-    │   └── subtask.schema.js
+    │   ├── subtask.schema.js
+    │   └── comment.schema.js
     └── utils/
         ├── AppError.js       # Typed HTTP error class
         ├── asyncHandler.js   # Wraps async controllers for Express error forwarding
