@@ -12,6 +12,17 @@ export const normalizeVercelUrl = (req) => {
   const parsedUrl = new URL(originalUrl, 'http://dira.local');
   const capturedPath = pathFromQuery(req.query?.path);
 
+  if (capturedPath) {
+    parsedUrl.searchParams.delete('path');
+
+    const normalizedPath = capturedPath === 'docs' || capturedPath.startsWith('docs/')
+      ? `/${capturedPath}`
+      : `/v1/${capturedPath}`;
+    const queryString = parsedUrl.searchParams.toString();
+
+    return queryString ? `${normalizedPath}?${queryString}` : normalizedPath;
+  }
+
   if (originalUrl.startsWith('/api/docs')) {
     return originalUrl.replace(/^\/api\/docs/, '/docs') || '/docs';
   }
@@ -20,18 +31,7 @@ export const normalizeVercelUrl = (req) => {
     return originalUrl.replace(/^\/api/, '/v1') || '/v1';
   }
 
-  if (!capturedPath) {
-    return '/v1';
-  }
-
-  parsedUrl.searchParams.delete('path');
-
-  const normalizedPath = capturedPath === 'docs' || capturedPath.startsWith('docs/')
-    ? `/${capturedPath}`
-    : `/v1/${capturedPath}`;
-  const queryString = parsedUrl.searchParams.toString();
-
-  return queryString ? `${normalizedPath}?${queryString}` : normalizedPath;
+  return '/v1';
 };
 
 export default async function handler(req, res) {
