@@ -1,13 +1,44 @@
 import app from '../src/app.js';
 import { connectDatabase } from '../src/db.js';
 
-export default async function handler(req, res) {
+const pathFromQuery = (value) => {
+  if (Array.isArray(value)) return value.join('/');
+  if (typeof value === 'string') return value;
+  return '';
+};
+
+export const normalizeVercelUrl = (req) => {
   const originalUrl = req.url || '/';
+  const parsedUrl = new URL(originalUrl, 'http://dira.local');
+  const capturedPath = pathFromQuery(req.query?.path);
+
   if (originalUrl.startsWith('/api/docs')) {
-    req.url = originalUrl.replace(/^\/api\/docs/, '/docs') || '/docs';
-  } else {
+    return originalUrl.replace(/^\/api\/docs/, '/docs') || '/docs';
+  }
+
+  if (originalUrl.startsWith('/api')) {
+    return originalUrl.replace(/^\/api/, '/v1') || '/v1';
+  }
+
+  if (!capturedPath) {
+    return '/v1';
+  }
+
+  parsedUrl.searchParams.delete('path');
+
+  const normalizedPath = capturedPath === 'docs' || capturedPath.startsWith('docs/')
+    ? `/${capturedPath}`
+    : `/v1/${capturedPath}`;
+  const queryString = parsedUrl.searchParams.toString();
+
+  return queryString ? `${normalizedPath}?${queryString}` : normalizedPath;
+};
+
+export default async function handler(req, res) {
+  req.url = normalizeVercelUrl(req);
+
+  if (!req.url.startsWith('/docs')) {
     await connectDatabase();
-    req.url = originalUrl.replace(/^\/api/, '/v1') || '/v1';
   }
 
   return app(req, res);
