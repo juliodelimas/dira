@@ -3,6 +3,9 @@ import mongoose from 'mongoose';
 import Board from './models/board.model.js';
 
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/dira';
+const MONGODB_OPTIONS = {
+  serverSelectionTimeoutMS: Number(process.env.MONGODB_SERVER_SELECTION_TIMEOUT_MS || 5000),
+};
 
 let connectionPromise;
 let migrationPromise;
@@ -24,7 +27,7 @@ const migrateInviteCodes = async () => {
 export const connectDatabase = async () => {
   if (!connectionPromise) {
     connectionPromise = mongoose
-      .connect(MONGODB_URI)
+      .connect(MONGODB_URI, MONGODB_OPTIONS)
       .then((connection) => {
         console.log('MongoDB connected');
         return connection;

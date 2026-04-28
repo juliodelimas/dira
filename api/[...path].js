@@ -38,7 +38,14 @@ export default async function handler(req, res) {
   req.url = normalizeVercelUrl(req);
 
   if (!req.url.startsWith('/docs')) {
-    await connectDatabase();
+    try {
+      await connectDatabase();
+    } catch (error) {
+      console.error('Database connection error:', error);
+      return res.status(503).json({
+        message: 'Database connection failed',
+      });
+    }
   }
 
   return app(req, res);
