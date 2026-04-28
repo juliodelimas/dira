@@ -7,6 +7,7 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
+    "build": "node scripts/prepare-vercel.js",
     "mcp": "node src/mcp-server.js",
     "mcp:dev": "node --watch src/mcp-server.js"
   },

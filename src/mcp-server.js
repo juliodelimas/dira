@@ -1,17 +1,31 @@
 import express from 'express';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
+import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import { fileURLToPath } from 'url';
 import { z } from 'zod';
 
-const API_BASE = process.env.DIRA_API_URL ?? 'http://localhost:3000';
 const MCP_PORT = Number(process.env.MCP_PORT ?? 4000);
+
+const resolveApiBase = () => {
+  if (process.env.DIRA_API_URL) {
+    const trimmed = process.env.DIRA_API_URL.replace(/\/$/, '');
+    return /\/(api|v1)$/.test(trimmed) ? trimmed : `${trimmed}/v1`;
+  }
+
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}/api`;
+  }
+
+  return 'http://localhost:3000/v1';
+};
 
 // ---------------------------------------------------------------------------
 // Helper
 // ---------------------------------------------------------------------------
 
 const call = async (method, path, { token, body, params } = {}) => {
-  const url = new URL(`${API_BASE}/v1${path}`);
+  const url = new URL(`${resolveApiBase()}${path}`);
   if (params) {
     for (const [k, v] of Object.entries(params)) {
       if (v !== undefined && v !== null) url.searchParams.set(k, String(v));
@@ -38,7 +52,7 @@ const call = async (method, path, { token, body, params } = {}) => {
 // MCP Server factory — one instance per SSE connection
 // ---------------------------------------------------------------------------
 
-function createServer() {
+export function createDiraMcpServer() {
 const server = new McpServer({ name: 'dira', version: '0.1.0' });
 
 // --- Auth ---
@@ -396,11 +410,12 @@ server.tool(
 // SSE HTTP server
 // ---------------------------------------------------------------------------
 
+export function createSseMcpApp() {
 const app = express();
 const transports = new Map();
 
 app.get('/sse', async (req, res) => {
-  const server = createServer();
+  const server = createDiraMcpServer();
   const transport = new SSEServerTransport('/messages', res);
   transports.set(transport.sessionId, transport);
   res.on('close', () => transports.delete(transport.sessionId));
@@ -414,8 +429,54 @@ app.post('/messages', express.json(), async (req, res) => {
   await transport.handlePostMessage(req, res, req.body);
 });
 
-app.listen(MCP_PORT, () => {
-  console.log(`Dira MCP server running on http://0.0.0.0:${MCP_PORT}`);
-  console.log(`  SSE endpoint : http://0.0.0.0:${MCP_PORT}/sse`);
-  console.log(`  Targeting API: ${API_BASE}`);
-});
+return app;
+}
+
+export function createStreamableMcpHandler() {
+  const app = express();
+
+  app.use(express.json());
+
+  app.all('/', async (req, res) => {
+    const server = createDiraMcpServer();
+    const transport = new StreamableHTTPServerTransport({
+      sessionIdGenerator: undefined,
+      enableJsonResponse: true,
+    });
+
+    try {
+      await server.connect(transport);
+      await transport.handleRequest(req, res, req.body);
+    } catch (error) {
+      console.error('Error handling MCP request:', error);
+      if (!res.headersSent) {
+        res.status(500).json({
+          jsonrpc: '2.0',
+          error: {
+            code: -32603,
+            message: 'Internal server error',
+          },
+          id: null,
+        });
+      }
+    } finally {
+      await transport.close();
+      await server.close();
+    }
+  });
+
+  return (req, res) => {
+    req.url = (req.url || '/').replace(/^\/api\/mcp/, '') || '/';
+    return app(req, res);
+  };
+}
+
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  const app = createSseMcpApp();
+
+  app.listen(MCP_PORT, () => {
+    console.log(`Dira MCP server running on http://0.0.0.0:${MCP_PORT}`);
+    console.log(`  SSE endpoint : http://0.0.0.0:${MCP_PORT}/sse`);
+    console.log(`  Targeting API: ${resolveApiBase()}`);
+  });
+}
