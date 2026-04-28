@@ -1,0 +1,18 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "buildCommand": "npm run build",
+  "outputDirectory": "public",
+  "rewrites": [
+    { "source": "/api/mcp", "destination": "/api/mcp" },
+    { "source": "/api/:path*", "destination": "/api/:path*" },
+    { "source": "/docs", "destination": "/api/docs" },
+    { "source": "/docs/:path*", "destination": "/api/docs/:path*" },
+    { "source": "/:path((?!api|docs|js|.*\\..*).*)", "destination": "/index.html" }
+  ],
+  "functions": {
+    "api/**/*.js": {
+      "maxDuration": 30
+    }
+  }
+}
